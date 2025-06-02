@@ -1,5 +1,5 @@
-import StrShuffler from "./lib/StrShuffler.js";
-import Api from "./lib/api.js";
+import StrShuffler from "/lib/StrShuffler.js";
+import Api from "/lib/api.js";
 
 function setError(err) {
     var element = document.getElementById("error-text");
