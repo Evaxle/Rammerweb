@@ -1,7 +1,0 @@
-name: rammerweb
-build:
-  run: npm install
-run:
-  cmd: npm start
-  env:
-    NODE_ENV: production
