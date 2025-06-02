@@ -1,8 +1,8 @@
-import StrShuffler from "/lib/StrShuffler.js";
-import Api from "/lib/api.js";
+import StrShuffler from "./lib/StrShuffler.js";
+import Api from "./lib/api.js";
 
 function setError(err) {
-    const element = document.getElementById("error-text");
+    var element = document.getElementById("error-text");
     if (err) {
         element.style.display = "block";
         element.textContent = "An error occurred: " + err;
@@ -16,15 +16,14 @@ window.addEventListener("error", setError);
 
 (function () {
     const api = new Api();
-    const localStorageKey = "rammerhead_sessionids";
-    const localStorageKeyDefault = "rammerhead_default_sessionid";
-
-    const sessionIdsStore = {
+    var localStorageKey = "rammerhead_sessionids";
+    var localStorageKeyDefault = "rammerhead_default_sessionid";
+    var sessionIdsStore = {
         get() {
-            const rawData = localStorage.getItem(localStorageKey);
+            var rawData = localStorage.getItem(localStorageKey);
             if (!rawData) return [];
             try {
-                const data = JSON.parse(rawData);
+                var data = JSON.parse(rawData);
                 if (!Array.isArray(data)) throw "getout";
                 return data;
             } catch (e) {
@@ -36,11 +35,13 @@ window.addEventListener("error", setError);
             localStorage.setItem(localStorageKey, JSON.stringify(data));
         },
         getDefault() {
-            const sessionId = localStorage.getItem(localStorageKeyDefault);
+            var sessionId = localStorage.getItem(localStorageKeyDefault);
             if (sessionId) {
-                const data = sessionIdsStore.get();
-                const filtered = data.filter(e => e.id === sessionId);
-                if (filtered.length) return filtered[0];
+                var data = sessionIdsStore.get();
+                data.filter(function (e) {
+                    return e.id === sessionId;
+                });
+                if (data.length) return data[0];
             }
             return null;
         },
@@ -50,75 +51,71 @@ window.addEventListener("error", setError);
     };
 
     function renderSessionTable(data) {
-        const tbody = document.querySelector("tbody");
-        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+        var tbody = document.querySelector("tbody");
+        while (tbody.firstChild && !tbody.firstChild.remove());
+        for (var i = 0; i < data.length; i++) {
+            var tr = document.createElement("tr");
+            appendIntoTr(data[i].id);
+            appendIntoTr(data[i].createdOn);
 
-        data.forEach((session, i) => {
-            const tr = document.createElement("tr");
-
-            appendIntoTr(session.id);
-            appendIntoTr(session.createdOn);
-
-            const fillInBtn = document.createElement("button");
+            var fillInBtn = document.createElement("button");
             fillInBtn.textContent = "Fill in existing session ID";
             fillInBtn.className = "btn btn-outline-primary";
-            fillInBtn.onclick = () => {
+            fillInBtn.onclick = index(i, function (idx) {
                 setError();
-                sessionIdsStore.setDefault(session.id);
-                loadSettings(session);
-            };
+                sessionIdsStore.setDefault(data[idx].id);
+                loadSettings(data[idx]);
+            });
             appendIntoTr(fillInBtn);
 
-            const deleteBtn = document.createElement("button");
+            var deleteBtn = document.createElement("button");
             deleteBtn.textContent = "Delete";
             deleteBtn.className = "btn btn-outline-danger";
-            deleteBtn.onclick = async () => {
+            deleteBtn.onclick = index(i, function (idx) {
                 setError();
-                await api.deletesession(session.id);
-                data.splice(i, 1);
-                sessionIdsStore.set(data);
-                renderSessionTable(data);
-            };
+                api.deletesession(data[idx].id).then(() => {
+                    data.splice(idx, 1)[0];
+                    sessionIdsStore.set(data);
+                    renderSessionTable(data);
+                });
+            });
             appendIntoTr(deleteBtn);
 
             tbody.appendChild(tr);
-
-            function appendIntoTr(stuff) {
-                const td = document.createElement("td");
-                if (typeof stuff === "object" && stuff instanceof Node) {
-                    td.appendChild(stuff);
-                } else {
-                    td.textContent = stuff;
-                }
-                tr.appendChild(td);
+        }
+        function appendIntoTr(stuff) {
+            var td = document.createElement("td");
+            if (typeof stuff === "object") {
+                td.appendChild(stuff);
+            } else {
+                td.textContent = stuff;
             }
-        });
+            tr.appendChild(td);
+        }
+        function index(i, func) {
+            return func.bind(null, i);
+        }
     }
-
     function loadSettings(session) {
         document.getElementById("session-id").value = session.id;
         document.getElementById("session-httpproxy").value = session.httpproxy || "";
-        document.getElementById("session-shuffling").checked =
-            typeof session.enableShuffling === "boolean" ? session.enableShuffling : true;
+        document.getElementById("session-shuffling").checked = typeof session.enableShuffling === "boolean" ? session.enableShuffling : true;
     }
-
     function loadSessions() {
-        const sessions = sessionIdsStore.get();
-        const defaultSession = sessionIdsStore.getDefault();
+        var sessions = sessionIdsStore.get();
+        var defaultSession = sessionIdsStore.getDefault();
         if (defaultSession) loadSettings(defaultSession);
         renderSessionTable(sessions);
     }
-
     function addSession(id) {
-        const data = sessionIdsStore.get();
+        var data = sessionIdsStore.get();
         data.unshift({ id: id, createdOn: new Date().toLocaleString() });
         sessionIdsStore.set(data);
         renderSessionTable(data);
     }
-
     function editSession(id, httpproxy, enableShuffling) {
-        const data = sessionIdsStore.get();
-        for (let i = 0; i < data.length; i++) {
+        var data = sessionIdsStore.get();
+        for (var i = 0; i < data.length; i++) {
             if (data[i].id === id) {
                 data[i].httpproxy = httpproxy;
                 data[i].enableShuffling = enableShuffling;
@@ -129,35 +126,38 @@ window.addEventListener("error", setError);
         throw new TypeError("cannot find " + id);
     }
 
+    api.get("/mainport").then((data) => {
+        var defaultPort = window.location.protocol === "https:" ? 443 : 80;
+        var currentPort = window.location.port || defaultPort;
+        var mainPort = data || defaultPort;
+        if (currentPort != mainPort) window.location.port = mainPort;
+    });
+
     api.needpassword().then(doNeed => {
         if (doNeed) {
             document.getElementById("password-wrapper").style.display = "";
         }
     });
-
     window.addEventListener("load", function () {
         loadSessions();
 
-        let showingAdvancedOptions = false;
+        var showingAdvancedOptions = false;
         document.getElementById("session-advanced-toggle").onclick = function () {
+            // eslint-disable-next-line no-cond-assign
             document.getElementById("session-advanced-container").style.display = (showingAdvancedOptions =
                 !showingAdvancedOptions)
                 ? "block"
                 : "none";
         };
 
-        document.getElementById("session-create-btn").addEventListener("click", async () => {
+        document.getElementById("session-create-btn").addEventListener("click", () => {
             setError();
-            try {
-                const id = await api.newsession();
+            api.newsession().then((id) => {
                 addSession(id);
                 document.getElementById("session-id").value = id;
                 document.getElementById("session-httpproxy").value = "";
-            } catch (e) {
-                setError(e);
-            }
+            });
         });
-
         async function go() {
             setError();
             const id = document.getElementById("session-id").value;
@@ -165,28 +165,18 @@ window.addEventListener("error", setError);
             const enableShuffling = document.getElementById("session-shuffling").checked;
             const url = document.getElementById("session-url").value || "https://www.google.com/";
             if (!id) return setError("must generate a session id first");
-            let value;
-            try {
-                value = await api.sessionexists(id);
-            } catch (e) {
-                return setError(e);
-            }
+            const value = api.sessionexists(id);
             if (!value) return setError("session does not exist. try deleting or generating a new session");
-            try {
-                await api.editsession(id, httpproxy, enableShuffling);
-                editSession(id, httpproxy, enableShuffling);
-                const shuffleDict = await api.shuffleDict(id);
-                if (!shuffleDict) {
-                    window.location.href = "/" + id + "/" + url;
-                } else {
-                    const shuffler = new StrShuffler(shuffleDict);
-                    window.location.href = "/" + id + "/" + shuffler.shuffle(url);
-                }
-            } catch (e) {
-                setError(e);
+            await api.editsession(id, httpproxy, enableShuffling);
+            editSession(id, httpproxy, enableShuffling);
+            const shuffleDict = await api.shuffleDict(id);
+            if (!shuffleDict) {
+                window.location.href = "/" + id + "/" + url;
+            } else {
+                var shuffler = new StrShuffler(shuffleDict);
+                window.location.href = "/" + id + "/" + shuffler.shuffle(url);
             }
         }
-
         document.getElementById("session-go").onclick = go;
         document.getElementById("session-url").addEventListener("keydown", (event) => {
             if (event.key === "Enter") go();
