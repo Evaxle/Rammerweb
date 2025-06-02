@@ -129,13 +129,6 @@ window.addEventListener("error", setError);
         throw new TypeError("cannot find " + id);
     }
 
-    api.get("/mainport").then((data) => {
-        const defaultPort = window.location.protocol === "https:" ? 443 : 80;
-        const currentPort = window.location.port || defaultPort;
-        const mainPort = data || defaultPort;
-        if (currentPort != mainPort) window.location.port = mainPort;
-    });
-
     api.needpassword().then(doNeed => {
         if (doNeed) {
             document.getElementById("password-wrapper").style.display = "";
@@ -153,13 +146,16 @@ window.addEventListener("error", setError);
                 : "none";
         };
 
-        document.getElementById("session-create-btn").addEventListener("click", () => {
+        document.getElementById("session-create-btn").addEventListener("click", async () => {
             setError();
-            api.newsession().then((id) => {
+            try {
+                const id = await api.newsession();
                 addSession(id);
                 document.getElementById("session-id").value = id;
                 document.getElementById("session-httpproxy").value = "";
-            });
+            } catch (e) {
+                setError(e);
+            }
         });
 
         async function go() {
@@ -169,16 +165,25 @@ window.addEventListener("error", setError);
             const enableShuffling = document.getElementById("session-shuffling").checked;
             const url = document.getElementById("session-url").value || "https://www.google.com/";
             if (!id) return setError("must generate a session id first");
-            const value = await api.sessionexists(id);
+            let value;
+            try {
+                value = await api.sessionexists(id);
+            } catch (e) {
+                return setError(e);
+            }
             if (!value) return setError("session does not exist. try deleting or generating a new session");
-            await api.editsession(id, httpproxy, enableShuffling);
-            editSession(id, httpproxy, enableShuffling);
-            const shuffleDict = await api.shuffleDict(id);
-            if (!shuffleDict) {
-                window.location.href = "/" + id + "/" + url;
-            } else {
-                const shuffler = new StrShuffler(shuffleDict);
-                window.location.href = "/" + id + "/" + shuffler.shuffle(url);
+            try {
+                await api.editsession(id, httpproxy, enableShuffling);
+                editSession(id, httpproxy, enableShuffling);
+                const shuffleDict = await api.shuffleDict(id);
+                if (!shuffleDict) {
+                    window.location.href = "/" + id + "/" + url;
+                } else {
+                    const shuffler = new StrShuffler(shuffleDict);
+                    window.location.href = "/" + id + "/" + shuffler.shuffle(url);
+                }
+            } catch (e) {
+                setError(e);
             }
         }
 
