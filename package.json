@@ -1,7 +1,7 @@
 {
-  "name": "rammerhead",
+  "name": "rammerweb",
   "version": "1.0.0",
-  "description": "Rammerhead easy deployment version.",
+  "description": "Rammerhead with tweaks",
   "type": "module",
   "scripts": {
     "start": "node src/index.js"
@@ -13,9 +13,9 @@
   "author": "binary-person and Amethyst Network contributors",
   "license": "GPL-3.0-or-later",
   "bugs": {
-    "url": "https://github.com/amethystnetwork-dev/Rammerhead/issues"
+    "url": "https://github.com/Evaxle/Rammerweb/issues"
   },
-  "homepage": "https://github.com/amethystnetwork-dev/Rammerhead#readme",
+  "homepage": "https://github.com/Evaxle/Rammerweb/blob/main/README.md",
   "dependencies": {
     "connect": "^3.7.0",
     "rammerhead": "https://github.com/holy-unblocker/rammerhead/releases/download/v1.2.41-holy.5/rammerhead-1.2.41-holy.5.tgz",
