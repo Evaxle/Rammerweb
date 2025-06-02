@@ -2,7 +2,7 @@ import StrShuffler from "/lib/StrShuffler.js";
 import Api from "/lib/api.js";
 
 function setError(err) {
-    var element = document.getElementById("error-text");
+    const element = document.getElementById("error-text");
     if (err) {
         element.style.display = "block";
         element.textContent = "An error occurred: " + err;
@@ -16,14 +16,15 @@ window.addEventListener("error", setError);
 
 (function () {
     const api = new Api();
-    var localStorageKey = "rammerhead_sessionids";
-    var localStorageKeyDefault = "rammerhead_default_sessionid";
-    var sessionIdsStore = {
+    const localStorageKey = "rammerhead_sessionids";
+    const localStorageKeyDefault = "rammerhead_default_sessionid";
+
+    const sessionIdsStore = {
         get() {
-            var rawData = localStorage.getItem(localStorageKey);
+            const rawData = localStorage.getItem(localStorageKey);
             if (!rawData) return [];
             try {
-                var data = JSON.parse(rawData);
+                const data = JSON.parse(rawData);
                 if (!Array.isArray(data)) throw "getout";
                 return data;
             } catch (e) {
@@ -35,13 +36,11 @@ window.addEventListener("error", setError);
             localStorage.setItem(localStorageKey, JSON.stringify(data));
         },
         getDefault() {
-            var sessionId = localStorage.getItem(localStorageKeyDefault);
+            const sessionId = localStorage.getItem(localStorageKeyDefault);
             if (sessionId) {
-                var data = sessionIdsStore.get();
-                data.filter(function (e) {
-                    return e.id === sessionId;
-                });
-                if (data.length) return data[0];
+                const data = sessionIdsStore.get();
+                const filtered = data.filter(e => e.id === sessionId);
+                if (filtered.length) return filtered[0];
             }
             return null;
         },
@@ -51,71 +50,75 @@ window.addEventListener("error", setError);
     };
 
     function renderSessionTable(data) {
-        var tbody = document.querySelector("tbody");
-        while (tbody.firstChild && !tbody.firstChild.remove());
-        for (var i = 0; i < data.length; i++) {
-            var tr = document.createElement("tr");
-            appendIntoTr(data[i].id);
-            appendIntoTr(data[i].createdOn);
+        const tbody = document.querySelector("tbody");
+        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
 
-            var fillInBtn = document.createElement("button");
+        data.forEach((session, i) => {
+            const tr = document.createElement("tr");
+
+            appendIntoTr(session.id);
+            appendIntoTr(session.createdOn);
+
+            const fillInBtn = document.createElement("button");
             fillInBtn.textContent = "Fill in existing session ID";
             fillInBtn.className = "btn btn-outline-primary";
-            fillInBtn.onclick = index(i, function (idx) {
+            fillInBtn.onclick = () => {
                 setError();
-                sessionIdsStore.setDefault(data[idx].id);
-                loadSettings(data[idx]);
-            });
+                sessionIdsStore.setDefault(session.id);
+                loadSettings(session);
+            };
             appendIntoTr(fillInBtn);
 
-            var deleteBtn = document.createElement("button");
+            const deleteBtn = document.createElement("button");
             deleteBtn.textContent = "Delete";
             deleteBtn.className = "btn btn-outline-danger";
-            deleteBtn.onclick = index(i, function (idx) {
+            deleteBtn.onclick = async () => {
                 setError();
-                api.deletesession(data[idx].id).then(() => {
-                    data.splice(idx, 1)[0];
-                    sessionIdsStore.set(data);
-                    renderSessionTable(data);
-                });
-            });
+                await api.deletesession(session.id);
+                data.splice(i, 1);
+                sessionIdsStore.set(data);
+                renderSessionTable(data);
+            };
             appendIntoTr(deleteBtn);
 
             tbody.appendChild(tr);
-        }
-        function appendIntoTr(stuff) {
-            var td = document.createElement("td");
-            if (typeof stuff === "object") {
-                td.appendChild(stuff);
-            } else {
-                td.textContent = stuff;
+
+            function appendIntoTr(stuff) {
+                const td = document.createElement("td");
+                if (typeof stuff === "object" && stuff instanceof Node) {
+                    td.appendChild(stuff);
+                } else {
+                    td.textContent = stuff;
+                }
+                tr.appendChild(td);
             }
-            tr.appendChild(td);
-        }
-        function index(i, func) {
-            return func.bind(null, i);
-        }
+        });
     }
+
     function loadSettings(session) {
         document.getElementById("session-id").value = session.id;
         document.getElementById("session-httpproxy").value = session.httpproxy || "";
-        document.getElementById("session-shuffling").checked = typeof session.enableShuffling === "boolean" ? session.enableShuffling : true;
+        document.getElementById("session-shuffling").checked =
+            typeof session.enableShuffling === "boolean" ? session.enableShuffling : true;
     }
+
     function loadSessions() {
-        var sessions = sessionIdsStore.get();
-        var defaultSession = sessionIdsStore.getDefault();
+        const sessions = sessionIdsStore.get();
+        const defaultSession = sessionIdsStore.getDefault();
         if (defaultSession) loadSettings(defaultSession);
         renderSessionTable(sessions);
     }
+
     function addSession(id) {
-        var data = sessionIdsStore.get();
+        const data = sessionIdsStore.get();
         data.unshift({ id: id, createdOn: new Date().toLocaleString() });
         sessionIdsStore.set(data);
         renderSessionTable(data);
     }
+
     function editSession(id, httpproxy, enableShuffling) {
-        var data = sessionIdsStore.get();
-        for (var i = 0; i < data.length; i++) {
+        const data = sessionIdsStore.get();
+        for (let i = 0; i < data.length; i++) {
             if (data[i].id === id) {
                 data[i].httpproxy = httpproxy;
                 data[i].enableShuffling = enableShuffling;
@@ -127,9 +130,9 @@ window.addEventListener("error", setError);
     }
 
     api.get("/mainport").then((data) => {
-        var defaultPort = window.location.protocol === "https:" ? 443 : 80;
-        var currentPort = window.location.port || defaultPort;
-        var mainPort = data || defaultPort;
+        const defaultPort = window.location.protocol === "https:" ? 443 : 80;
+        const currentPort = window.location.port || defaultPort;
+        const mainPort = data || defaultPort;
         if (currentPort != mainPort) window.location.port = mainPort;
     });
 
@@ -138,12 +141,12 @@ window.addEventListener("error", setError);
             document.getElementById("password-wrapper").style.display = "";
         }
     });
+
     window.addEventListener("load", function () {
         loadSessions();
 
-        var showingAdvancedOptions = false;
+        let showingAdvancedOptions = false;
         document.getElementById("session-advanced-toggle").onclick = function () {
-            // eslint-disable-next-line no-cond-assign
             document.getElementById("session-advanced-container").style.display = (showingAdvancedOptions =
                 !showingAdvancedOptions)
                 ? "block"
@@ -158,6 +161,7 @@ window.addEventListener("error", setError);
                 document.getElementById("session-httpproxy").value = "";
             });
         });
+
         async function go() {
             setError();
             const id = document.getElementById("session-id").value;
@@ -165,7 +169,7 @@ window.addEventListener("error", setError);
             const enableShuffling = document.getElementById("session-shuffling").checked;
             const url = document.getElementById("session-url").value || "https://www.google.com/";
             if (!id) return setError("must generate a session id first");
-            const value = api.sessionexists(id);
+            const value = await api.sessionexists(id);
             if (!value) return setError("session does not exist. try deleting or generating a new session");
             await api.editsession(id, httpproxy, enableShuffling);
             editSession(id, httpproxy, enableShuffling);
@@ -173,10 +177,11 @@ window.addEventListener("error", setError);
             if (!shuffleDict) {
                 window.location.href = "/" + id + "/" + url;
             } else {
-                var shuffler = new StrShuffler(shuffleDict);
+                const shuffler = new StrShuffler(shuffleDict);
                 window.location.href = "/" + id + "/" + shuffler.shuffle(url);
             }
         }
+
         document.getElementById("session-go").onclick = go;
         document.getElementById("session-url").addEventListener("keydown", (event) => {
             if (event.key === "Enter") go();
